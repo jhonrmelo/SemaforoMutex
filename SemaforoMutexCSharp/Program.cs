@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SemaforoMutexCSharp
 {
     class Program
     {
-        static bool podeAlocar = false;
+        static bool podeAlocar = true;
         static void Main(string[] args)
         {
             Console.WriteLine("Digite as características dos processsos:");
@@ -25,27 +27,56 @@ namespace SemaforoMutexCSharp
                 lstProcesso.Add(new Processo(nome, tur));
 
                 Console.WriteLine("Deseja parar a criação de processos? Se sim digite 'P', se não digite 'C'");
+                inputControl = Console.ReadLine();
 
-            } while (inputControl.ToUpper() == "P");
+            } while (inputControl.ToUpper() != "P");
 
 
             while (_calculaTurs(lstProcesso) > 0)
             {
+                Console.Clear();
                 foreach (var processo in lstProcesso)
                 {
-                    Console.WriteLine($"Processo:  {processo.Nome} ");
-                    Console.WriteLine($"Tempo restante: {processo.Tur}");
-                    Console.WriteLine($"Status: {_showEnumString(processo.Status)}");
-
+                    _escreveProcessos(processo);
                     _down(processo);
                     _up(processo);
                 }
-                Console.WriteLine($"O processo em execução é o processo: {findByStatus(lstProcesso, EnumStatus.Finalizado).Nome}");
+                _mostraProcessoEmExecucao(lstProcesso);
+                Thread.Sleep(1000);
+            }
+            Console.Clear();
+            _escreveProcessos(lstProcesso);
+            Console.ReadLine();
+        }
+
+        static void _escreveProcessos(Processo processo)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Processo:  {processo.Nome} ");
+            Console.WriteLine($"Tempo restante: {processo.Tur}");
+            Console.WriteLine($"Status: {_showEnumString(processo.Status)}");
+        }
+
+        static void _escreveProcessos(List<Processo> lstProcesso)
+        {
+            foreach (var processo in lstProcesso)
+            {
+                _escreveProcessos(processo);
             }
         }
         static int _calculaTurs(List<Processo> lstSemaforo)
         {
             return lstSemaforo.Sum(semaforo => semaforo.Tur);
+        }
+
+        private static void _mostraProcessoEmExecucao(List<Processo> lstProcesso)
+        {
+            Processo processoEmExecucao = findByStatus(lstProcesso, EnumStatus.EmExecucao);
+
+            if (processoEmExecucao != null)
+                Console.WriteLine($"O processo em execução é o processo: {processoEmExecucao.Nome}");
+            else
+                Console.WriteLine("Não existe nenhum processo em execução!");
         }
 
         static string _showEnumString(EnumStatus enumStatus)
@@ -67,17 +98,18 @@ namespace SemaforoMutexCSharp
 
         static void _down(Processo processo)
         {
-            bool emExecuxao = processo.Status != EnumStatus.EmExecucao;
+            bool emExecuxao = processo.Status == EnumStatus.EmExecucao;
+            bool finalizado = processo.Status == EnumStatus.Finalizado;
 
-            if (!emExecuxao)
+            if (!emExecuxao && !finalizado)
                 Console.WriteLine($"O processo - {processo.Nome} está solicitando um recurso.");
 
-            if (podeAlocar && !emExecuxao)
+            if (podeAlocar && _isAlocavel(processo))
                 processo.Status = EnumStatus.EmExecucao;
-            else
+
+            else if (processo.Status == EnumStatus.Livre)
             {
-                if (processo.Status != EnumStatus.Dormindo && processo.Status != EnumStatus.EmExecucao)
-                    processo.Status = EnumStatus.Dormindo;
+                processo.Status = EnumStatus.Dormindo;
             }
 
             podeAlocar = false;
@@ -88,18 +120,23 @@ namespace SemaforoMutexCSharp
             return lstProcesso.Where(Processo => Processo.Status == enumStatus).FirstOrDefault();
         }
 
+        private static bool _isAlocavel(Processo processo)
+        {
+            if (processo.Status == EnumStatus.EmExecucao || processo.Status == EnumStatus.Finalizado)
+                return false;
+
+            return true;
+        }
         static void _up(Processo processo)
         {
             if (processo.Status == EnumStatus.EmExecucao)
             {
                 processo.DecrementaTur();
             }
-
             if (processo.Tur == 0)
             {
                 processo.Status = EnumStatus.Finalizado;
                 podeAlocar = true;
-
             }
         }
     }
