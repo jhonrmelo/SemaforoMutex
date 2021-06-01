@@ -15,7 +15,8 @@
 
         public void DecrementaTur()
         {
-            Tur--;
+            if (Tur != 0)
+                Tur--;
         }
 
     }

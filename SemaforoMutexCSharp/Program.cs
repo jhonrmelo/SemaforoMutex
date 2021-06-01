@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace SemaforoMutexCSharp
 {
     class Program
     {
         static bool podeAlocar = true;
+        static Processo ProcessoEmExecucao;
         static void Main(string[] args)
         {
             Console.WriteLine("Digite as características dos processsos:");
@@ -16,6 +16,9 @@ namespace SemaforoMutexCSharp
             List<Processo> lstProcesso = new List<Processo>();
             string nome;
             int tur;
+            int numProcessos;
+            int contador = 1;
+            bool incrementa = true;
             do
             {
                 Console.WriteLine("Digite o nome do processo:");
@@ -31,16 +34,30 @@ namespace SemaforoMutexCSharp
 
             } while (inputControl.ToUpper() != "P");
 
+            numProcessos = lstProcesso.Count;
 
             while (_calculaTurs(lstProcesso) > 0)
             {
+
                 Console.Clear();
                 foreach (var processo in lstProcesso)
                 {
                     _escreveProcessos(processo);
-                    _down(processo);
-                    _up(processo);
                 }
+
+                _down(lstProcesso[contador - 1]);
+                _up();
+
+                if (contador == numProcessos)
+                    incrementa = false;
+                else if (contador == 1)
+                    incrementa = true;
+
+                if (incrementa)
+                    contador++;
+                else
+                    contador--;
+
                 _mostraProcessoEmExecucao(lstProcesso);
                 Thread.Sleep(1000);
             }
@@ -105,8 +122,10 @@ namespace SemaforoMutexCSharp
                 Console.WriteLine($"O processo - {processo.Nome} está solicitando um recurso.");
 
             if (podeAlocar && _isAlocavel(processo))
+            {
+                ProcessoEmExecucao = processo;
                 processo.Status = EnumStatus.EmExecucao;
-
+            }
             else if (processo.Status == EnumStatus.Livre)
             {
                 processo.Status = EnumStatus.Dormindo;
@@ -127,15 +146,13 @@ namespace SemaforoMutexCSharp
 
             return true;
         }
-        static void _up(Processo processo)
+        static void _up()
         {
-            if (processo.Status == EnumStatus.EmExecucao)
+            ProcessoEmExecucao?.DecrementaTur();
+
+            if (ProcessoEmExecucao.Tur == 0)
             {
-                processo.DecrementaTur();
-            }
-            if (processo.Tur == 0)
-            {
-                processo.Status = EnumStatus.Finalizado;
+                ProcessoEmExecucao.Status = EnumStatus.Finalizado;
                 podeAlocar = true;
             }
         }
